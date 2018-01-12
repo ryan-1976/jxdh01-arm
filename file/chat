@@ -1,0 +1,18 @@
+#/bin/sh
+ABORT "NO CARRIER"
+ABORT "NO DIALTONE"
+ABORT "ERROR"
+ABORT "NO ANSWER"
+ABORT "BUSY"
+ABORT "invalid login"
+ABORT "login incorrect"
+'' ATZ
+OK
+AT+CGDCONT=1,"IP","CMNET"                                                     
+OK
+AT+CGACT=1,1
+OK
+AT+CGATT=1
+OK
+ATDT*99***1#
+CONNECT

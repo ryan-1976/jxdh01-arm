@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Root>
+    <CfgFileInfo version="1.0" />
+    <HardwareInfo name="GRRU-1022R" erp="600001-001882-0000" net="1" netOwner="1" />
+    <SoftwareInfo appVer="1.0.00" dataBaseVer="1.0" multiFreq="0" />
+    <Process>
+        <Booter exePath="booter" queKey="100" />
+        <Monitor exePath="monitor_process" queKey="101" />
+    </Process>
+    <Driver>
+        <WatchDog exePath="/root/empprj_RUN/driver/m88x_wdt_if" devNodePath=" " />
+    </Driver>
+    <Function>
+        <SysGuard enable="1" number="5" />
+        <MonitorGuard enable="1" number="1" />
+    </Function>
+    <SysPara>
+        <OmcMtu value="512" sysAttr1="my" />
+        <MonitorSlaverMtu value="64" sysAttr2="world" />
+        <MonitorSubstationMtu value="512" />
+    </SysPara>
+    <MonitorSubstation>
+        <SubStation equipmentNum="0" stationType="0" />
+    </MonitorSubstation>
+</Root>

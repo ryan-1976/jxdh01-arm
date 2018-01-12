@@ -1,0 +1,10 @@
+#!/bin/sh
+if [ -f /ppp0ip ]
+then
+	rm -f /ppp0ip
+	echo "have find ppp0ip"
+	echo `/sbin/ifconfig ppp0 |grep P-t-P|awk {'print $2'}|cut -f2 -d:` >> /ppp0ip
+else
+	echo "can not find ppp0ip"
+	echo `/sbin/ifconfig ppp0 |grep P-t-P|awk {'print $2'}|cut -f2 -d:` >> /ppp0ip
+fi
