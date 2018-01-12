@@ -115,7 +115,7 @@ INT16U AP_circleBuff_ReadPacketData(void)
 	switch(port)
 	{
 		case MQTPA2DTU:
-			            printf("-enter-MQTPA2DTU-----------------");
+			            //printf("-enter-MQTPA2DTU-----------------");
 						pthread_mutex_lock(&RecvBuff4treat.lock);
 						for(i=0;i<dataLen;i++)
 						{
@@ -124,12 +124,12 @@ INT16U AP_circleBuff_ReadPacketData(void)
 						RecvBuff4treat.protoltype = 0;
 						RecvBuff4treat.scrFlag = MQTPA;
 						RecvBuff4treat.len = dataLen;
-						printf("--MQTPA2DTU--copy ok---------\n");
+						//printf("--MQTPA2DTU--copy ok---------\n");
 						pthread_cond_signal(&RecvBuff4treat.newPacketFlag);
 						pthread_mutex_unlock(&RecvBuff4treat.lock);
 						break;
 		case DTU2MQTPA:
-						printf("-------------------DTU2MQTPA------------------\n");
+						//printf("----enter---DTU2MQTPA------------");
 						pthread_mutex_lock(&mqSentBuff.lock);
 
 						for(i=0;i<dataLen;i++)
@@ -138,7 +138,7 @@ INT16U AP_circleBuff_ReadPacketData(void)
 						}
 						mqSentBuff.mqttTopicFlag = MQTPA;
 						mqSentBuff.len = dataLen;
-						printf("-------------------DTU2MUTPA copy ok--------------\n");
+						//printf("-----DTU2MUTPA copy ok--------------\n");
 						pthread_cond_signal(&mqSentBuff.newPacketFlag);
 						pthread_mutex_unlock(&mqSentBuff.lock);
 						break;

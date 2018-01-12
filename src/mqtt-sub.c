@@ -1,10 +1,10 @@
 #include "stdio.h"
-//#include "stdlib.h"
+#include "stdlib.h"
 #include "string.h"
 #include "MQTTClient.h"
 #include "circlebuff.h"
 #include <unistd.h>
-#include <stdlib.h>
+
 //#define ADDRESS     "tcp://localhost:1883"
 #define ADDRESS     "tcp://192.168.7.240:1883"
 #define CLIENTID    "11111111111111sub"
@@ -34,11 +34,6 @@ int msgarrvd1(void *context, char *topicName, int topicLen, MQTTClient_message *
 	printf(" topicLen:%d\n ",message->payloadlen);
 
     payloadptr = message->payload;
-    // for(i=0; i<message->payloadlen; i++)
-    // {
-        // putchar(*payloadptr++);
-    // }
-    // putchar('\n');
 	
 	pthread_mutex_lock(&comBuff0.lock);
 
@@ -58,16 +53,9 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTClient_message *m
     printf(" new mqtt Message arrived:");
     printf(" topic: %s", topicName);
 	printf(" topicLen:%d\n ",message->payloadlen);
-   // printf(" message: ");
-
 
     payloadptr = message->payload;
-   // for(i=0; i<message->payloadlen; i++)
-    // {
-        // putchar(*payloadptr++);
-    // }
-    // putchar('\n');
-	
+
 	pthread_mutex_lock(&comBuff0.lock);
 
 	AP_circleBuff_WritePacket(payloadptr++,message->payloadlen,MQTPA2DTU);
@@ -93,9 +81,9 @@ void *mqtt_sub_treat(int argc, char* argv[])
     int ch;
 
 	//--------------------------------------------------------------
-	printf("--11-----enter mqtt_bub_treat-----------------\n");
+	printf("-------enter mqtt_sub_treat-----------------\n");
     MQTTClient_create(&client, ADDRESS, CLIENTID,
-        MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 60;
     conn_opts.cleansession = 1;
 
@@ -103,8 +91,8 @@ void *mqtt_sub_treat(int argc, char* argv[])
 
     if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
     {
-        printf("sub Failed to connect, return code %d\n", rc);
-        exit(EXIT_FAILURE);
+        printf("sub start up Failed to connect, return code %d\n", rc);
+        //exit(EXIT_FAILURE);
     }
     printf("Subscribing to topic %s\nfor client %s using QoS%d\n\n"
            "Press Q<Enter> to quit\n\n", TOPIC, CLIENTID, QOS);
@@ -126,11 +114,27 @@ void *mqtt_sub_treat(int argc, char* argv[])
 //           "Press Q<Enter> to quit\n\n", TOPIC, CLIENTID1, QOS);
 //    MQTTClient_subscribe(client1, TOPIC1, QOS);
 //--------------------------------------------------------------
-	
+
     do 
     {
-        ch = getchar();
-    } while(ch!='Q' && ch != 'q');
+		while(!MQTTClient_isConnected(client))
+		{
+			if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
+			{
+				printf(" sub retry to connect failure, return code %d\n", rc);
+			}
+			else
+			{
+				printf("Subscribing to topic %s\nfor client %s using QoS%d\n\n"
+				           "Press Q<Enter> to quit\n\n", TOPIC, CLIENTID, QOS);
+				    MQTTClient_subscribe(client, TOPIC, QOS);
+			}
+			sleep(3);
+			printf("-------sub wait to connected-----------------\n");
+		};
+		sleep(3);
+
+    }while(1);
 
     MQTTClient_disconnect(client, 10000);
     MQTTClient_destroy(&client);
