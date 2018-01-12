@@ -1,0 +1,21 @@
+#!/bin/sh
+user foo password foo                                          
+defaultroute
+modem
+lock
+/dev/ttyS0
+9600
+lcp-echo-failure 0
+lcp-echo-interval 0
+debug debug debug
+asyncmap 20A0000 escape FF kdebug 0
+ipcp-accept-local
+ipcp-accept-remote
+noipdefault
+noauth
+novj
+noccp
+crtscts
+#usepeerdns 10.103.255.140
+connect "/usr/sbin/chat -v -f /etc/ppp/peers/chat"
+
