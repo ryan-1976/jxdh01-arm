@@ -23,5 +23,6 @@
 void write_sqliteFifo(unsigned char *wbuf, unsigned int len,unsigned char type);
 void read_sqliteFifo(unsigned char *rbuf);
 
+
 #endif
 

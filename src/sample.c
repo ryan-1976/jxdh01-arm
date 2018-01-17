@@ -28,23 +28,20 @@ void *sampleData_treat(void)
 {
 	char cdtuBuf[2048];
 	int i;
+	static unsigned char j;
 	sqlite3 *db = NULL; //声明sqlite关键结构指针
 	int result;
 
-	    //打开数据库
-	    //需要传入 db 这个指针的指针，因为 sqlite3_open 函数要为这个指针分配内存，还要让db指针指向这个内存区
-	  result = sqlite3_open("Dcg_database.db", &db );
-	    if( result != SQLITE_OK )
-	    {
-	        //数据库打开失败
-	       return -1;
-	    }
+	j=0;
+	sleep(3);
 	while(1)
 	{
+
 		printf("---enter ---sampleData_treat----------\n");
 		for(i=0;i<1024;i++){
-			cdtuBuf[i]=i;
+			cdtuBuf[i]=j;
 		}
+		j++;
 		pthread_mutex_lock(&comBuff0.lock);
 		//AP_circleBuff_WritePacket(tblStrinName,1024,DTU2MQTPA);
 		AP_circleBuff_WritePacket(cdtuBuf,1024,DTU2MQTPA);
@@ -52,7 +49,7 @@ void *sampleData_treat(void)
 		pthread_mutex_unlock(&comBuff0.lock);
 
 		pthread_mutex_lock(&sqlWriteBufferLock);
-		write_sqliteFifo(cdtuBuf,1024,RTDATA);
+		write_sqliteFifo(cdtuBuf,1024,0xff);
 		pthread_cond_signal(&sqlWritePacketFlag);
 		pthread_mutex_unlock(&sqlWriteBufferLock);
 

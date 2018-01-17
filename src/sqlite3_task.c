@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-
+#include "sqlite3_task.h"
 const char* file_database_path = "/home/ryan"; //文件数据库存放路径
 sqlite3 *memDevSampleDb;
 
@@ -15,14 +15,14 @@ const char* sql_search_data = "SELECT * FROM devSampleInfo WHERE timestamp BETWE
 const char* sql_transfer_data = "INSERT OR REPLACE INTO filedb.testinfo SELECT * FROM testinfo;";   //将内存数据库中的信息同步到文件数据库中
 const char* sql_delete_memory_table = "DELETE FROM testinfo;";	//内存数据库中的内容同步结束后，清空
 
-#define BUFSIZE	2000
+#define BUFSIZE	4096
 volatile static unsigned int read_pos=0, write_pos=0;
 volatile static unsigned char full=0, empty=1;
 static unsigned char buffer[BUFSIZE];
 extern pthread_mutex_t sqlWriteBufferLock;
 extern pthread_cond_t  sqlWritePacketFlag;
 
-int InsertMemDevRecord(int id, int devId, int devSampleId, int timestamp,const char* message,int messagelen)
+int InsertMemDevRecord(unsigned int id, unsigned int  devId, unsigned int  devSampleId, unsigned int  timestamp,unsigned int  messagelen,const char* message)
 {
     int      rc              =  0;
    // char*    errMsg          =  NULL;
@@ -52,6 +52,7 @@ int InsertMemDevRecord(int id, int devId, int devSampleId, int timestamp,const c
     }
 
     sqlite3_finalize(stmt);
+    printf("------------write db ok -------------------------------------");
     return 0;
 }
 
@@ -174,15 +175,29 @@ int loadOrSaveDb(sqlite3 *pInMemeory, const char *zFilename, int isSave)
 
 void *sqlite_treat(void)
 {
+	int i;
+	unsigned char readFifoData[2048]  = {0xff};
 	printf("---enter ---sqlite_treat----------\n");
 	InitSqliteDb();
+	static unsigned int id=0,devId=0x55,devSampleId=0,timestamp=0x88;
 
 	while(1)
 	{
 		pthread_mutex_lock(&sqlWriteBufferLock);
 		pthread_cond_wait(&sqlWritePacketFlag, &sqlWriteBufferLock);
 		printf("---enter ---sqlite_data_treat----------\n");
+		read_sqliteFifo(readFifoData);
+		id ++;
+		devSampleId++;
+		InsertMemDevRecord(id, devId, devSampleId, timestamp,1027,readFifoData);
+//		printf("sqlite recvieve data:\n");
+//        for(i=0;i<1027;i++)
+//        {
+//        	printf("%d",readFifoData[i]);
+//        }
+//        printf("\n");
 		//msgDisPatcherTreat();
+        //sleep(10);
 		pthread_mutex_unlock(&sqlWriteBufferLock);
 	}
 	return NULL;
@@ -206,33 +221,29 @@ void write_byte(unsigned char *src)
 
 void read_byte(unsigned char *dst)
 {
-	//should disable WR when operating at system level
-
 	if(!empty){
 	*dst = buffer[read_pos];
 	read_pos = (read_pos + 1)%BUFSIZE;
 	if(read_pos == write_pos)
 		empty = 1;
 	full = 0;
-
 	}
 }
 
 void write_sqliteFifo(unsigned char *wbuf, unsigned int len,unsigned char type)
 {
-	int i;
+	unsigned int i;
 	unsigned char tmp[3];
 
 	tmp[0]=(unsigned char) (len>>8);
-	tmp[1]=(unsigned char) len>>8;
+	tmp[1]=(unsigned char) len;
 	tmp[2]= type;
 
 	write_byte(&tmp[0]);
 	write_byte(&tmp[1]);
 	write_byte(&tmp[2]);
 
-	for( i=0;(i<len)&&(!full);i++)
-		write_byte(wbuf++);
+	for( i=0;(i<len)&&(!full);i++)write_byte(wbuf++);
 	return;
 }
 
@@ -247,7 +258,10 @@ void read_sqliteFifo(unsigned char *rbuf)
 	read_byte(&tmp[1]);
 	len =tmp[0]*256+tmp[1];
 
-	for(i=0; (i<len+1)&&(!empty);i++)
+	*rbuf++ = tmp[0];
+	*rbuf++ = tmp[1];
+	for(i=0; (i<len+1)&&(!empty);i++){
 		read_byte(rbuf++);
+	}
 	return;
 }
