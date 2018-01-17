@@ -49,8 +49,8 @@ typedef signed   int   INT32S;
 
 typedef struct
 {
-    unsigned long int    readPos;
-    unsigned long int    writePos;
+	volatile unsigned long int    readPos;
+	volatile unsigned long int    writePos;
     unsigned char   data[MAX_BUFF_LEN];
 	pthread_mutex_t lock;
 	pthread_cond_t  newPacketFlag;

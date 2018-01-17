@@ -19,13 +19,16 @@
 #include <pthread.h>
 #include "circlebuff.h"
 #include <stdio.h>
-#include <pthread.h>
+
 
 
 
 DATAS_BUFF_T   comBuff0; 
 MQTT_SENT_BUFF_T mqSentBuff;
 RECV_BUFF_T RecvBuff4treat;
+pthread_mutex_t sqlWriteBufferLock;
+pthread_cond_t  sqlWritePacketFlag;
+
 unsigned char AP_PacketBuff[MAX_PACKET_BUFF_LEN];//���嵥�����ݰ�
 
 void G_Buff_init(void)
@@ -38,8 +41,11 @@ void G_Buff_init(void)
 	pthread_cond_init(&mqSentBuff.newPacketFlag, NULL);
 	pthread_mutex_init(&RecvBuff4treat.lock, NULL);
 	pthread_cond_init(&RecvBuff4treat.newPacketFlag, NULL);
+	pthread_mutex_init(&sqlWriteBufferLock, NULL);
+	pthread_cond_init(&sqlWritePacketFlag, NULL);
+
 }
-//�ж��Ƿ���������
+
 unsigned char  AP_circleBuff_HaveData_Buff(void)
 {
     if (comBuff0.readPos != comBuff0.writePos)
@@ -51,7 +57,7 @@ unsigned char  AP_circleBuff_HaveData_Buff(void)
         return 0;
     }
 }
-//�ӻ�����д���ֽ����ݣ�
+
 unsigned char  AP_circleBuff_WriteData(unsigned char data)
 {
     unsigned long int  nextPos;
@@ -72,7 +78,7 @@ unsigned char  AP_circleBuff_WriteData(unsigned char data)
         return 0;
     }
 }
-//�ӻ����ж����ֽ����ݣ�
+
 unsigned char AP_circleBuff_ReadData(void)
 {
     unsigned char dataTemp =0;

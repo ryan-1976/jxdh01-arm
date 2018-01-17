@@ -1,122 +1,60 @@
+#include <stddef.h>
+#include "sqlite3.h"
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+
 const char* file_database_path = "/home/ryan"; //文件数据库存放路径
+sqlite3 *memDevSampleDb;
 
 const char* sql_create_data = "CREATE TABLE devSampleInfo (id INTEGER PRIMARY KEY, devId INTEGER,devSampleId INTEGER, timestamp INTEGER,message BLOB);";
 const char* sql_insert_data = "INSERT OR REPLACE INTO devSampleInfo VALUES('%d', '%d', %d, %d,?);";
-const char* sql_delete_data = "DELETE FROM testinfo WHERE id = '%d';"; //删除内存数据库，需同时删除内存
-const char* sql_update_data = "UPDATE MAIN.testinfo SET message = '%s', offset = %d, timestamp = %d where id = '%s'; UPDATE filedb.testinfo SET message = '%s', offset = %d, timestamp = %d where id = '%s';";//更新数据库，需同时更新内存、文件数据库中的内容
-const char* sql_search_data = "SELECT * FROM MAIN.testinfo WHERE timestamp BETWEEN %d AND %d union SELECT * FROM testdb.testinfo WHERE timestamp BETWEEN %d AND %d;"; //查找数据库，将内存、文件数据库中查找出的内容合并
+const char* sql_delete_data = "DELETE FROM devSampleInfo WHERE id = '%d';"; //删除内存数据库，需同时删除内存
+const char* sql_update_data = "UPDATE devSampleInfo SET message = '%s', offset = %d, timestamp = %d where id = '%s';";//更新数据库，需同时更新内存、文件数据库中的内容
+const char* sql_search_data = "SELECT * FROM devSampleInfo WHERE timestamp BETWEEN %d AND %d union SELECT * FROM testdb.testinfo WHERE timestamp BETWEEN %d AND %d;"; //查找数据库，将内存、文件数据库中查找出的内容合并
 const char* sql_transfer_data = "INSERT OR REPLACE INTO filedb.testinfo SELECT * FROM testinfo;";   //将内存数据库中的信息同步到文件数据库中
 const char* sql_delete_memory_table = "DELETE FROM testinfo;";	//内存数据库中的内容同步结束后，清空
 
+#define BUFSIZE	2000
+volatile static unsigned int read_pos=0, write_pos=0;
+volatile static unsigned char full=0, empty=1;
+static unsigned char buffer[BUFSIZE];
+extern pthread_mutex_t sqlWriteBufferLock;
+extern pthread_cond_t  sqlWritePacketFlag;
 
-int InsertRecord(DATA_TYPE type, const char* id, const char* message, int offset, int timestamp)
+int InsertMemDevRecord(int id, int devId, int devSampleId, int timestamp,const char* message,int messagelen)
 {
     int      rc              =  0;
-    char*    errMsg          =  NULL;
+   // char*    errMsg          =  NULL;
     char     sqlcmd[512]     =  {0};
-    time_t   insertTimestamp =  0;
+   // time_t   insertTimestamp =  0;
+    sqlite3_stmt *stmt = NULL;
 
-    snprintf(sqlcmd, sizeof(sqlcmd), sql_insert_data, id, message, offset, timestamp);
-    rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't add record to memory database %s, sqlcmd=%s, err:%s\n", map_data_table[type].data_table_name, sqlcmd, errMsg);
+    snprintf(sqlcmd, sizeof(sqlcmd), sql_insert_data, id, devId, devSampleId, timestamp);
+    rc = sqlite3_prepare(memDevSampleDb, sqlcmd, strlen(sqlcmd), &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "memDevSampleDb prepare fail, errcode[%d], errmsg[%s]\n", rc, sqlite3_errmsg(memDevSampleDb));
+        sqlite3_close(memDevSampleDb);
         return -1;
     }
-    
+
+    rc = sqlite3_bind_blob(stmt, 1, &message, messagelen, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "memDevSampleDb bind fail, errcode[%d], errmsg[%s]\n", rc, sqlite3_errmsg(memDevSampleDb));
+        sqlite3_close(memDevSampleDb);
+        return -1;
+    }
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "memDevSampleDb insert fail, errcode[%d], errmsg[%s]\n", rc, sqlite3_errmsg(memDevSampleDb));
+        sqlite3_close(memDevSampleDb);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
     return 0;
 }
 
-int UpdateRecord(DATA_TYPE type, const char* id, const char* message, int offset, int timestamp)
-{
-    int      rc              = 0;
-    char*    errMsg          = NULL;
-    char     sqlCmd[512]  = {0};
-
-    snprintf(sqlCmd, sizeof(sqlCmd), sql_update_data, message, offset, timestamp, id, message, offset, timestamp, id);
-    rc = sqlite3_exec(memdb, sqlCmd, NULL, NULL, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't update record %s:%s\n", map_data_table[type].data_table_name, errMsg);
-        return -1;
-    }
-
-    return 0;
-}
-
-int DeleteRecord(DATA_TYPE type, const char* id)
-{
-    int      rc              =  0;
-    char*    errMsg          =  NULL;
-    char     sqlcmd[512]     =  {0};
-
-    snprintf(sqlcmd, sizeof(sqlcmd), sql_delete_data, id,  id);
-    rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't delete record %s:%s\n", map_data_table[type].data_table_name, errMsg);
-        return -1;
-    }
-
-    return 0;
-}
-
-int QueryMessage(DATA_TYPE type, int startTime, int endTime)
-{
-    int      rc              = 0;
-    char     *errMsg         = NULL;
-    sqlite3  *filedb         = NULL;
-    char**   pRecord         = NULL;
-    int      row             = 0;
-    int      column          = 0;
-	char     sqlcmd[512]     = {0};
-
-    if (type > VEP_NELEMS(map_data_table) || type < 0) {
-        return -1;
-    }
-
-    rc = sqlite3_open(file_database_path, &filedb);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't open database:%s\n", sqlite3_errmsg(filedb));
-        sqlite3_close(filedb);
-        return -1;
-    }
-
-    snprintf(sqlcmd, sizeof(sqlcmd), sql_search_data,  startTime, endTime,  startTime, endTime);
-    
-    rc = sqlite3_get_table(filedb, sqlcmd, &pRecord, &row, &column, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't get table from%s:%s\n", map_data_table[type].data_table_name, errMsg);
-        return -1;
-    }
-	
-    int i;
-    printf("row = %d, column = %d\n", row, column);
-    for(i = 0; i < 2*column; i++)
-    {
-        printf("%s ", pRecord[i]);
-    }
-    printf("\n");
-
-    return 0;
-}
-
-//定时调用此函数将内存数据中的内容同步到文件数据库
-int Flush(){
-    int      i            = 0;
-    int      rc           = 0;
-    char*    errMsg       = NULL;
-    char     sqlcmd[512]  = {0};
-
-	snprintf(sqlcmd, sizeof(sqlcmd), sql_transfer_data);
-	rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-	if (SQLITE_OK != rc) {
-		fprintf(stderr, "cat't transfer memory database %s to file databasede:%s\n", map_data_table[i].data_table_name, sqlite3_errmsg(memdb));
-		sqlite3_close(memdb);
-		return -1;
-	}
-	snprintf(sqlcmd, sizeof(sqlcmd), sql_delete_memory_table);
-	rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-
-    return 0;
-}
 
 //创建文件数据库
 int CreateDbOnFile()
@@ -125,7 +63,7 @@ int CreateDbOnFile()
     int      rc           = 0;
     char*    errMsg       = NULL;
     char     sqlcmd[512]  = {0};
-    int      i            = 0;
+
 
     rc = sqlite3_open(file_database_path, &db);
     if (SQLITE_OK != rc) {
@@ -152,58 +90,21 @@ int CreateDbOnMemery()
     int      rc           = 0;
     char*    errMsg       = NULL;
     char     sqlcmd[512]  = {0};
-    int      i            = 0;
 
-    rc = sqlite3_open(":memory:", &memdb);
+    rc = sqlite3_open(":memory:", &memDevSampleDb);
     if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't open database:%s\n", sqlite3_errmsg(memdb));
-        sqlite3_close(memdb);
+        fprintf(stderr, "cat't open database:%s\n", sqlite3_errmsg(memDevSampleDb));
+        sqlite3_close(memDevSampleDb);
         return -1;
     }
     
 	snprintf(sqlcmd, sizeof(sqlcmd), sql_create_data);
-	rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
+	rc = sqlite3_exec(memDevSampleDb, sqlcmd, NULL, NULL, &errMsg);
 	if (SQLITE_OK != rc) {
 		fprintf(stderr, "cat't create memory database %s\n", errMsg);
-		sqlite3_close(memdb);
+		sqlite3_close(memDevSampleDb);
 		return -1;
 	}
-
-    return 0;
-}
-
-//解绑数据库
-int DetachDb()
-{
-    int      rc           =  0;
-    char*    errMsg       =  NULL;
-    char     sqlcmd[512]  =  {0};
-
-    snprintf(sqlcmd, sizeof(sqlcmd), "DETACH '%s'", "filedb");
-    rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "detach file database failed:%s:%s\n", file_database_path, errMsg);
-        sqlite3_close(memdb);
-        return -1;
-    }
-
-    return 0;
-}
-
-//将文件数据库作为内存数据库的附加数据库
-int AttachDb()
-{
-    int      rc           =  0;
-    char*    errMsg       =  NULL;
-    char     sqlcmd[512]  =  {0};
-
-    snprintf(sqlcmd, sizeof(sqlcmd), "ATTACH '%s' AS %s", file_database_path, "filedb");
-    rc = sqlite3_exec(memdb, sqlcmd, NULL, NULL, &errMsg);
-    if (SQLITE_OK != rc) {
-        fprintf(stderr, "cat't attach database %s:%s\n", file_database_path, errMsg);
-        sqlite3_close(memdb);
-        return -1;
-    }
 
     return 0;
 }
@@ -213,20 +114,20 @@ int InitSqliteDb()
 {
     int retval = 0;
 
-    retval =  CreateDbOnFile();
-    if (retval != 0) {
-        return retval;
-    }
+//    retval =  CreateDbOnFile();
+//    if (retval != 0) {
+//        return retval;
+//    }
 
     retval =  CreateDbOnMemery();
     if (retval != 0) {
         return retval;
     }
 
-    retval =  AttachDb();
-    if (retval != 0) {
-        return retval;
-    }
+//    retval =  AttachDb();
+//    if (retval != 0) {
+//        return retval;
+//    }
 
     return 0;
 }
@@ -269,4 +170,84 @@ int loadOrSaveDb(sqlite3 *pInMemeory, const char *zFilename, int isSave)
          (void)sqlite3_close(pFile);
 
          return rc;
+}
+
+void *sqlite_treat(void)
+{
+	printf("---enter ---sqlite_treat----------\n");
+	InitSqliteDb();
+
+	while(1)
+	{
+		pthread_mutex_lock(&sqlWriteBufferLock);
+		pthread_cond_wait(&sqlWritePacketFlag, &sqlWriteBufferLock);
+		printf("---enter ---sqlite_data_treat----------\n");
+		//msgDisPatcherTreat();
+		pthread_mutex_unlock(&sqlWriteBufferLock);
+	}
+	return NULL;
+}
+
+
+
+void write_byte(unsigned char *src)
+{
+	//should disable RE when operating at system level
+
+	if (!full){
+	buffer[write_pos] = *src;
+	write_pos = (write_pos + 1)%BUFSIZE;
+	if (write_pos == read_pos)
+		full = 1;
+	empty = 0;
+	}
+
+}
+
+void read_byte(unsigned char *dst)
+{
+	//should disable WR when operating at system level
+
+	if(!empty){
+	*dst = buffer[read_pos];
+	read_pos = (read_pos + 1)%BUFSIZE;
+	if(read_pos == write_pos)
+		empty = 1;
+	full = 0;
+
+	}
+}
+
+void write_sqliteFifo(unsigned char *wbuf, unsigned int len,unsigned char type)
+{
+	int i;
+	unsigned char tmp[3];
+
+	tmp[0]=(unsigned char) (len>>8);
+	tmp[1]=(unsigned char) len>>8;
+	tmp[2]= type;
+
+	write_byte(&tmp[0]);
+	write_byte(&tmp[1]);
+	write_byte(&tmp[2]);
+
+	for( i=0;(i<len)&&(!full);i++)
+		write_byte(wbuf++);
+	return;
+}
+
+void read_sqliteFifo(unsigned char *rbuf)
+{
+	int i;
+	int len;
+
+	unsigned char tmp[2];
+
+	read_byte(&tmp[0]);
+	read_byte(&tmp[1]);
+	len =tmp[0]*256+tmp[1];
+
+	for(i=0; (i<len+1)&&(!empty);i++)
+		read_byte(rbuf++);
+	return;
 }

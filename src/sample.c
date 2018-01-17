@@ -13,14 +13,18 @@
 #include <fcntl.h>
 #include "sqlite3.h"
 #include "circlebuff.h"
-extern unsigned char AP_PacketBuff[];
+#include "sqlite3_task.h"
+
+//extern unsigned char AP_PacketBuff[];
 extern DATAS_BUFF_T   comBuff0; 
+extern pthread_mutex_t sqlWriteBufferLock;
+extern pthread_cond_t  sqlWritePacketFlag;
 typedef  unsigned char  U08;
 typedef  unsigned short U16;
 typedef  signed char    I08;
 typedef  signed short   I16;
 
-void *cdtu_treat(void)
+void *sampleData_treat(void)
 {
 	char cdtuBuf[2048];
 	int i;
@@ -37,7 +41,7 @@ void *cdtu_treat(void)
 	    }
 	while(1)
 	{
-		printf("---4-33enter ---cdtu_treat----------\n");
+		printf("---enter ---sampleData_treat----------\n");
 		for(i=0;i<1024;i++){
 			cdtuBuf[i]=i;
 		}
@@ -46,6 +50,12 @@ void *cdtu_treat(void)
 		AP_circleBuff_WritePacket(cdtuBuf,1024,DTU2MQTPA);
 		pthread_cond_signal(&comBuff0.newPacketFlag);
 		pthread_mutex_unlock(&comBuff0.lock);
+
+		pthread_mutex_lock(&sqlWriteBufferLock);
+		write_sqliteFifo(cdtuBuf,1024,RTDATA);
+		pthread_cond_signal(&sqlWritePacketFlag);
+		pthread_mutex_unlock(&sqlWriteBufferLock);
+
 		sleep(3);
 	}
 }
