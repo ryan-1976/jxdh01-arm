@@ -39,7 +39,7 @@ void *sampleData_treat(void)
 
 		printf("---enter ---sampleData_treat----------\n");
 		for(i=0;i<1024;i++){
-			cdtuBuf[i]=j;
+			cdtuBuf[i]=j+1;
 		}
 		j++;
 		pthread_mutex_lock(&comBuff0.lock);

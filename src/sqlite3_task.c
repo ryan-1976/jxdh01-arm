@@ -4,14 +4,17 @@
 #include <stdio.h>
 #include <string.h>
 #include "sqlite3_task.h"
-const char* file_database_path = "/home/ryan"; //文件数据库存放路径
+const char* file_database_path = "/home/ryan/file.db"; //文件数据库存放路径
 sqlite3 *memDevSampleDb;
 
 const char* sql_create_data = "CREATE TABLE devSampleInfo (id INTEGER PRIMARY KEY, devId INTEGER,devSampleId INTEGER, timestamp INTEGER,message BLOB);";
-const char* sql_insert_data = "INSERT OR REPLACE INTO devSampleInfo VALUES('%d', '%d', %d, %d,?);";
+//const char* sql_insert_data = "INSERT INTO devSampleInfo (id, devId,devSampleId, timestamp,message BLOB) VALUES(%d,%d,%d,%d,?);";
+const char* sql_insert_data = "INSERT INTO devSampleInfo VALUES(%d,%d,%d,%d,?);";
 const char* sql_delete_data = "DELETE FROM devSampleInfo WHERE id = '%d';"; //删除内存数据库，需同时删除内存
 const char* sql_update_data = "UPDATE devSampleInfo SET message = '%s', offset = %d, timestamp = %d where id = '%s';";//更新数据库，需同时更新内存、文件数据库中的内容
-const char* sql_search_data = "SELECT * FROM devSampleInfo WHERE timestamp BETWEEN %d AND %d union SELECT * FROM testdb.testinfo WHERE timestamp BETWEEN %d AND %d;"; //查找数据库，将内存、文件数据库中查找出的内容合并
+//const char* sql_search_data = "SELECT * FROM devSampleInfo WHERE timestamp BETWEEN %d AND %d"; //查找数据库，将内存、文件数据库中查找出的内容合并
+const char* sql_search_data = "SELECT * FROM devSampleInfo WHERE id = %d;";
+const char* sql_search_blobData = "SELECT message FROM devSampleInfo WHERE id = %d;";
 const char* sql_transfer_data = "INSERT OR REPLACE INTO filedb.testinfo SELECT * FROM testinfo;";   //将内存数据库中的信息同步到文件数据库中
 const char* sql_delete_memory_table = "DELETE FROM testinfo;";	//内存数据库中的内容同步结束后，清空
 
@@ -21,7 +24,9 @@ volatile static unsigned char full=0, empty=1;
 static unsigned char buffer[BUFSIZE];
 extern pthread_mutex_t sqlWriteBufferLock;
 extern pthread_cond_t  sqlWritePacketFlag;
-
+unsigned char readFifoData[2048]  = {0xff};
+char pPicData[2000];
+char rData[2000];
 int InsertMemDevRecord(unsigned int id, unsigned int  devId, unsigned int  devSampleId, unsigned int  timestamp,unsigned int  messagelen,const char* message)
 {
     int      rc              =  0;
@@ -29,16 +34,26 @@ int InsertMemDevRecord(unsigned int id, unsigned int  devId, unsigned int  devSa
     char     sqlcmd[512]     =  {0};
    // time_t   insertTimestamp =  0;
     sqlite3_stmt *stmt = NULL;
+    int i;
 
-    snprintf(sqlcmd, sizeof(sqlcmd), sql_insert_data, id, devId, devSampleId, timestamp);
-    rc = sqlite3_prepare(memDevSampleDb, sqlcmd, strlen(sqlcmd), &stmt, NULL);
+    snprintf(sqlcmd, sizeof(sqlcmd), sql_insert_data, id, devId, devSampleId, timestamp,message);
+    rc = sqlite3_prepare_v2(memDevSampleDb, sqlcmd, strlen(sqlcmd), &stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "memDevSampleDb prepare fail, errcode[%d], errmsg[%s]\n", rc, sqlite3_errmsg(memDevSampleDb));
         sqlite3_close(memDevSampleDb);
         return -1;
     }
 
-    rc = sqlite3_bind_blob(stmt, 1, &message, messagelen, NULL);
+	//rc = sqlite3_bind_blob(stmt, 1, &message, messagelen, NULL);
+    for(i=0;i<messagelen;i++){
+    	pPicData[i]=message[i];
+    	//pPicData[i]=0x38;
+    }
+//    for(i=0;i<messagelen;i++){
+//    	 printf("%x",pPicData[i]);
+//    }
+//    printf("\n");
+    rc = sqlite3_bind_blob(stmt, 1, pPicData, messagelen, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "memDevSampleDb bind fail, errcode[%d], errmsg[%s]\n", rc, sqlite3_errmsg(memDevSampleDb));
         sqlite3_close(memDevSampleDb);
@@ -52,10 +67,52 @@ int InsertMemDevRecord(unsigned int id, unsigned int  devId, unsigned int  devSa
     }
 
     sqlite3_finalize(stmt);
-    printf("------------write db ok -------------------------------------");
+    printf("------------write db ok -----messagelen=%d----------------\n",messagelen);
     return 0;
 }
+int QueryMessage(int id)
+{
+    int      rc              = 0;
+    char     *errMsg         = NULL;
+    sqlite3  *filedb         = NULL;
+    char**   pRecord         = NULL;
+    int      row             = 0;
+    int      column          = 0;
+    char     sqlcmd[512]     = {0};
+    sqlite3_stmt *pStmt = NULL;
+    int i,j,index;
 
+//    rc = sqlite3_open(file_database_path, &memDevSampleDb);
+//    if (SQLITE_OK != rc) {
+//        fprintf(stderr, "cat't open database:%s\n", sqlite3_errmsg(filedb));
+//        sqlite3_close(filedb);
+//        return -1;
+//    }
+
+    snprintf(sqlcmd, sizeof(sqlcmd), sql_search_blobData, id);
+
+	pStmt=NULL;
+	{//从数据库中读取txt文件数据
+		char *data=NULL;
+		int iLen;
+
+		memset(rData,8,1050);
+		sqlite3_prepare(memDevSampleDb, sqlcmd, -1, &pStmt, 0);
+		sqlite3_step(pStmt);
+		data= (char *)sqlite3_column_blob(pStmt,0);//得到纪录中的BLOB字段
+		iLen= sqlite3_column_bytes(pStmt, 0);//得到字段中数据的长度
+		memmove(rData,data,iLen);
+		printf("----------------iLen=%d----------\n",iLen);
+		for(i=0;i<1050;i++){
+			printf("%x",rData[i]);
+		}
+		printf("\n");
+		printf("---------------read----end----------\n");
+		//printf("%s\n",buffer);
+	}
+        printf("\n");
+    return 0;
+}
 
 //创建文件数据库
 int CreateDbOnFile()
@@ -93,6 +150,7 @@ int CreateDbOnMemery()
     char     sqlcmd[512]  = {0};
 
     rc = sqlite3_open(":memory:", &memDevSampleDb);
+   // rc = sqlite3_open(file_database_path, &memDevSampleDb);
     if (SQLITE_OK != rc) {
         fprintf(stderr, "cat't open database:%s\n", sqlite3_errmsg(memDevSampleDb));
         sqlite3_close(memDevSampleDb);
@@ -176,7 +234,7 @@ int loadOrSaveDb(sqlite3 *pInMemeory, const char *zFilename, int isSave)
 void *sqlite_treat(void)
 {
 	int i;
-	unsigned char readFifoData[2048]  = {0xff};
+
 	printf("---enter ---sqlite_treat----------\n");
 	InitSqliteDb();
 	static unsigned int id=0,devId=0x55,devSampleId=0,timestamp=0x88;
@@ -190,14 +248,7 @@ void *sqlite_treat(void)
 		id ++;
 		devSampleId++;
 		InsertMemDevRecord(id, devId, devSampleId, timestamp,1027,readFifoData);
-//		printf("sqlite recvieve data:\n");
-//        for(i=0;i<1027;i++)
-//        {
-//        	printf("%d",readFifoData[i]);
-//        }
-//        printf("\n");
-		//msgDisPatcherTreat();
-        //sleep(10);
+		QueryMessage(id);
 		pthread_mutex_unlock(&sqlWriteBufferLock);
 	}
 	return NULL;
