@@ -67,7 +67,7 @@ int InsertMemDevRecord(unsigned int id, unsigned int  devId, unsigned int  devSa
     }
 
     sqlite3_finalize(stmt);
-    printf("------------write db ok -----messagelen=%d----------------\n",messagelen);
+    //printf("------------write db ok -----messagelen=%d----------------\n",messagelen);
     return 0;
 }
 int QueryMessage(int id)
@@ -102,15 +102,15 @@ int QueryMessage(int id)
 		data= (char *)sqlite3_column_blob(pStmt,0);//得到纪录中的BLOB字段
 		iLen= sqlite3_column_bytes(pStmt, 0);//得到字段中数据的长度
 		memmove(rData,data,iLen);
-		printf("----------------iLen=%d----------\n",iLen);
-		for(i=0;i<1050;i++){
-			printf("%x",rData[i]);
-		}
-		printf("\n");
-		printf("---------------read----end----------\n");
+	//	printf("-----read sqlite--iLen=%d----------\n",iLen);
+//		for(i=0;i<1050;i++){
+//			printf("%x",rData[i]);
+//		}
+//		printf("\n");
+//		printf("---------------read----end----------\n");
 		//printf("%s\n",buffer);
 	}
-        printf("\n");
+      //  printf("\n");
     return 0;
 }
 
@@ -243,7 +243,7 @@ void *sqlite_treat(void)
 	{
 		pthread_mutex_lock(&sqlWriteBufferLock);
 		pthread_cond_wait(&sqlWritePacketFlag, &sqlWriteBufferLock);
-		printf("---enter ---sqlite_data_treat----------\n");
+		//printf("---enter ---sqlite_data_treat----------\n");
 		read_sqliteFifo(readFifoData);
 		id ++;
 		devSampleId++;

@@ -81,7 +81,7 @@ void *mqtt_sub_treat(int argc, char* argv[])
     int ch;
 
 	//--------------------------------------------------------------
-	printf("-------enter mqtt_sub_treat-----------------\n");
+	//printf("-------enter mqtt_sub_treat-----------------\n");
     MQTTClient_create(&client, ADDRESS, CLIENTID,
     MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 60;

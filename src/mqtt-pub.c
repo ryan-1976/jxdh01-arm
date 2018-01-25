@@ -34,7 +34,7 @@ void *mqtt_pub_treat(int argc, char* argv[])
 
 
 
-	printf("-------enter mqtt_pub_treat----------------- \n");
+	//printf("-------enter mqtt_pub_treat----------------- \n");
     MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
 
     conn_opts.keepAliveInterval = 60;
