@@ -21,8 +21,7 @@ extern pthread_mutex_t sqlWriteBufferLock;
 extern pthread_cond_t  sqlWritePacketFlag;
 typedef  unsigned char  U08;
 typedef  unsigned short U16;
-typedef  signed char    I08;
-typedef  signed short   I16;
+
 int fd_spi = 0;
 
 #include <getopt.h>
@@ -30,25 +29,23 @@ int fd_spi = 0;
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include "spidev.h"
+#include "spiCom.h"
 
-#define SPI_DEVICE "/dev/spidev0.0"
-#define GPIO_DEVICE "/sys/class/gpio/gpio68/value"
-//static const char *device = "/dev/spidev0.0";
 static U08 mode;
 static U08 bits = 8;
 static unsigned long int speed = 500000;
 unsigned char buf_me[1] = {0x55};
 static U16 delay;
 static U08 g_mcuPaketNumWait4Get;
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
-#define BUFFER_SIZE 768
+
 U08 spiTxBuff[BUFFER_SIZE] = {0,};
 U08 spiRxBuff[BUFFER_SIZE] = {0,};
-U08 cdtuBuf[2048];
 
+extern void spiPacket(void);
 U08  spiComPacketTreat(void);
 static U08 spi_TxRx(int fd);
 U08 spi_Init(void);
+extern void spi2MqtttPacket(void);
 
 static void pabort(const char *s)
 {
@@ -81,13 +78,13 @@ void *sampleData_treat(void)
 		{
 			printf("---enter ---nmamtf----------\n");
 			pthread_mutex_lock(&comBuff0.lock);
-
-			AP_circleBuff_WritePacket(cdtuBuf,BUFFER_SIZE,DTU2MQTPA);
+			spi2MqtttPacket();
+			//AP_circleBuff_WritePacket(cdtuBuf,BUFFER_SIZE,DTU2MQTPA);
 			pthread_cond_signal(&comBuff0.newPacketFlag);
 			pthread_mutex_unlock(&comBuff0.lock);
 
 			pthread_mutex_lock(&sqlWriteBufferLock);
-			write_sqliteFifo(cdtuBuf,1024,0xff);
+			//write_sqliteFifo(cdtuBuf,1024,0xff);
 			pthread_cond_signal(&sqlWritePacketFlag);
 			pthread_mutex_unlock(&sqlWriteBufferLock);
 
@@ -220,7 +217,7 @@ static U08 spi_TxRx(int fd)
 	struct spi_ioc_transfer tr_txrx[] = {
 		{
                 .tx_buf = (unsigned long)spiTxBuff,
-               .len = BUFFER_SIZE,
+                .len = BUFFER_SIZE,
                 .delay_usecs = delay,
                 .speed_hz = speed,
                 .bits_per_word = bits,
