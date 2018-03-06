@@ -76,7 +76,7 @@ void *sampleData_treat(void)
 		spiComFlag= spi_TxRx(fd_spi);
 		if(spiComFlag==0 &&spiComPacketTreat()==1)
 		{
-			printf("---enter ---nmamtf----------\n");
+			//printf("---enter ---nmamtf----------\n");
 			pthread_mutex_lock(&comBuff0.lock);
 			spi2MqtttPacket();
 			//AP_circleBuff_WritePacket(cdtuBuf,BUFFER_SIZE,DTU2MQTPA);
@@ -90,17 +90,17 @@ void *sampleData_treat(void)
 
 			if(g_mcuPaketNumWait4Get !=0)
 				{
-				printf("---enter ---300ms----------\n");
+				//printf("---enter ---300ms----------\n");
 				usleep(250000);//delay 250ms
 				}
 			else {
-				printf("---enter ---1s--ok--------\n");
+				//printf("---enter ---1s--ok--------\n");
 				sleep(1);//delay 1s
 			}
 		}
 		else
 		{
-			printf("---enter ---1s--err--------\n");
+			//printf("---enter ---1s--err--------\n");
 			sleep(1);//delay 1s
 		}
 	}
@@ -235,23 +235,23 @@ static U08 spi_TxRx(int fd)
 		{
         	pabort("can't revieve spi message\\n");
 		}
-		else
-		{
-			printf("recieve: ok \n");
-		}
-        i=0;
-		for (m = 0; m < 10; m++)
-		{
-			printf("%x ", spiRxBuff[i++]);
-		}
-		for (m = 0; m < 720; m++)
-		{
-			if(m%48==0)printf("\n");
-			printf("%x ", spiRxBuff[i++]);
-		}
-		printf("\n");
-		printf("%x ", spiRxBuff[BUFFER_SIZE-2]);
-		printf("%x ", spiRxBuff[BUFFER_SIZE-1]);
-		printf("\n");
+//		else
+//		{
+//			printf("spi recieve: ok \n");
+//		}
+//        i=0;
+//		for (m = 0; m < 10; m++)
+//		{
+//			printf("%x ", spiRxBuff[i++]);
+//		}
+//		for (m = 0; m < 720; m++)
+//		{
+//			if(m%48==0)printf("\n");
+//			printf("%x ", spiRxBuff[i++]);
+//		}
+//		printf("\n");
+//		printf("%x ", spiRxBuff[BUFFER_SIZE-2]);
+//		printf("%x ", spiRxBuff[BUFFER_SIZE-1]);
+//		printf("\n");
 		return ret;
 }

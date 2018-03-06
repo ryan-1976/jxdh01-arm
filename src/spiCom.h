@@ -21,7 +21,7 @@ typedef struct{
 }COM_HEAD_TYPE;
 
 #define PACKET_HEAD_LEN (sizeof(COM_HEAD_TYPE))
-#define PACKET_CONTEXT_LEN 729
+#define PACKET_CONTEXT_LEN 732
 #define PACKET_LEN (PACKET_HEAD_LEN+PACKET_CONTEXT_LEN+3)
 
 typedef union

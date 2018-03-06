@@ -18,21 +18,25 @@ void spi2MqtttPacket(void)
 	pCom =(COM_TYPE *)&cdtuBuf[0];
 	pCom->head.startFlag = 0x7e;
 	tmp2.word =PACKET_LEN-2;
-	pCom->head.packetLen[1] = tmp2.byte[1];
-	pCom->head.packetLen[0] = tmp2.byte[0];
+	pCom->head.packetLen[1] = tmp2.byte[0];
+	pCom->head.packetLen[0] = tmp2.byte[1];
 	tmp2.word =g_comPacketIdx;
-	pCom->head.packetNum[1] = tmp2.byte[1];
-	pCom->head.packetNum[0] = tmp2.byte[0];
+	pCom->head.packetNum[1] = tmp2.byte[0];
+	pCom->head.packetNum[0] = tmp2.byte[1];
 	tmp4.lword= g_siteId;
-	pCom->head.siteId[3] = tmp4.byte[3];
-	pCom->head.siteId[2] = tmp4.byte[2];
-	pCom->head.siteId[1] = tmp4.byte[1];
-	pCom->head.siteId[0] = tmp4.byte[0];
+	pCom->head.siteId[3] = tmp4.byte[0];
+	pCom->head.siteId[2] = tmp4.byte[1];
+	pCom->head.siteId[1] = tmp4.byte[2];
+	pCom->head.siteId[0] = tmp4.byte[3];
 	pCom->head.devId =     spiRxBuff[1];
 	pCom->head.packetCmd = 0x82;
 	pCom->head.packetAnswer = 0xff;
+	pCom->buffer[PACKET_HEAD_LEN]=0xfe;
+	pCom->buffer[PACKET_HEAD_LEN+1]=0x0f;
+	pCom->buffer[PACKET_HEAD_LEN+2]=0x01;
+
     for(i=0;i<PACKET_CONTEXT_LEN;i++){
-    	pCom->buffer[i+PACKET_HEAD_LEN]=spiRxBuff[i+1];
+    	pCom->buffer[i+3+PACKET_HEAD_LEN]=spiRxBuff[i+1];
     }
     pCom->buffer[PACKET_LEN-1]=0x7e;
 	AP_circleBuff_WritePacket(cdtuBuf,PACKET_LEN,DTU2MQTPA);

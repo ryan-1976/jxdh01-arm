@@ -178,10 +178,11 @@ void AP_circleBuff_WritePacket(INT8U *s, INT16U len, INT16U port)
 	AP_circleBuff_WriteData((unsigned char)len);
 	// printf("(len_h)=----------------- %d",(len>>8));
 	// printf("(len_l)=----------------- %d\n",len);
+	//printf("\n");
     for (i=0; i<len; i++)
     {
         AP_circleBuff_WriteData(s[i]);
-		// printf("%d",s[i]);
+		//printf("%x ",s[i]);
     }
 	// printf("\n");
 }

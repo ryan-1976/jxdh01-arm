@@ -6,11 +6,11 @@
 #include <unistd.h>
 
 //#define ADDRESS     "tcp://localhost:1883"
-#define ADDRESS     "tcp://192.168.7.240:1883"
+#define ADDRESS     "tcp://192.168.3.101:1883"
 #define CLIENTID    "11111111111111sub"
 #define CLIENTID1   "11111111111122sub"
-#define TOPIC       "mqtt/11111111111111"
-#define TOPIC1       "mqtt/11111111111122"
+#define TOPIC       "mqtt/31111111111111"
+#define TOPIC1       "mqtt/31111111111122"
 #define PAYLOAD     "Hello World!"
 #define QOS         1
 #define TIMEOUT     10000L

@@ -9,12 +9,12 @@
 #include "circlebuff.h"
 
 //#define ADDRESS     "tcp://localhost:1883"
-#define ADDRESS     "tcp://192.168.7.240:1883"
+#define ADDRESS     "tcp://192.168.3.101:1883"
 #define CLIENTID    "11111111111111pub"
 #define CLIENTID1   "11111111111122pub"
 #define TOPIC       "mqtt/11111111111111"
 #define TOPIC1       "mqtt/11111111111122"
-#define PAYLOAD     "Hello World!"
+#define PAYLOAD     "wgrt-data"
 #define QOS         1
 #define TIMEOUT     5000L
 char pubBuf[2048];
@@ -34,7 +34,7 @@ void *mqtt_pub_treat(int argc, char* argv[])
 
 
 
-	//printf("-------enter mqtt_pub_treat----------------- \n");
+	printf("-------enter mqtt_pub_treat----------------- \n");
     MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
 
     conn_opts.keepAliveInterval = 60;
