@@ -77,22 +77,23 @@ void *sampleData_treat(void)
 		if(spiComFlag==0 &&spiComPacketTreat()==1)
 		{
 			//printf("---enter ---nmamtf----------\n");
+
 			pthread_mutex_lock(&comBuff0.lock);
 			spi2MqtttPacket();
-			//AP_circleBuff_WritePacket(cdtuBuf,BUFFER_SIZE,DTU2MQTPA);
 			pthread_cond_signal(&comBuff0.newPacketFlag);
 			pthread_mutex_unlock(&comBuff0.lock);
 
-			pthread_mutex_lock(&sqlWriteBufferLock);
-			//write_sqliteFifo(cdtuBuf,1024,0xff);
-			pthread_cond_signal(&sqlWritePacketFlag);
-			pthread_mutex_unlock(&sqlWriteBufferLock);
+//			pthread_mutex_lock(&sqlWriteBufferLock);
+//			write_sqliteFifo(cdtuBuf,1024,0xff);
+//			pthread_cond_signal(&sqlWritePacketFlag);
+//			pthread_mutex_unlock(&sqlWriteBufferLock);
 
 			if(g_mcuPaketNumWait4Get !=0)
 				{
 				//printf("---enter ---300ms----------\n");
 				usleep(250000);//delay 250ms
 				}
+
 			else {
 				//printf("---enter ---1s--ok--------\n");
 				sleep(1);//delay 1s
@@ -240,7 +241,7 @@ static U08 spi_TxRx(int fd)
 //			printf("spi recieve: ok \n");
 //		}
 //        i=0;
-//		for (m = 0; m < 10; m++)
+//		for (m = 0; m < 12; m++)
 //		{
 //			printf("%x ", spiRxBuff[i++]);
 //		}

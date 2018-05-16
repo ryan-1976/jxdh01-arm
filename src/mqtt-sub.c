@@ -6,7 +6,8 @@
 #include <unistd.h>
 
 //#define ADDRESS     "tcp://localhost:1883"
-#define ADDRESS     "tcp://192.168.3.101:1883"
+//#define ADDRESS     "tcp://192.168.3.101:1883"
+#define ADDRESS     "tcp://182.61.43.75:1883"
 #define CLIENTID    "11111111111111sub"
 #define CLIENTID1   "11111111111122sub"
 #define TOPIC       "mqtt/31111111111111"

@@ -9,7 +9,9 @@
 #include "circlebuff.h"
 
 //#define ADDRESS     "tcp://localhost:1883"
-#define ADDRESS     "tcp://192.168.3.101:1883"
+//#define ADDRESS     "tcp://192.168.3.101:1883"
+//#define ADDRESS     "tcp://182.61.43.75:1883"
+#define ADDRESS     "tcp://47.106.81.63:1883"
 #define CLIENTID    "11111111111111pub"
 #define CLIENTID1   "11111111111122pub"
 #define TOPIC       "mqtt/11111111111111"
@@ -77,11 +79,11 @@ void *mqtt_pub_treat(int argc, char* argv[])
 			MQTTClient_publish(client, TOPIC1,mqSentBuff.len, pubBuf,QOS,0, &token);
 		}
 
-		 printf("Waiting for up to %d seconds for publication of %s\n"	 ""
-				 "on topic %s for client with ClientID: %s\n",
-		 (int)(TIMEOUT/1000), PAYLOAD, TOPIC, CLIENTID);
+//		 printf("Waiting for up to %d seconds for publication of %s\n"	 ""
+//				 "on topic %s for client with ClientID: %s\n",
+//		 (int)(TIMEOUT/1000), PAYLOAD, TOPIC, CLIENTID);
 		 rc = MQTTClient_waitForCompletion(client, token, TIMEOUT);
-		 printf("Message with delivery token %d delivered\n", token);
+//		 printf("Message with delivery token %d delivered\n", token);
 
 		//--------------------------------------
 		//sleep(2);
